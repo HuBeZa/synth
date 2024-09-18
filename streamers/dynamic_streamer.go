@@ -181,7 +181,7 @@ func (s *dynamicStreamer) SetTremoloOff() error {
 		s.tremolo.isOn = true
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -256,10 +256,10 @@ func (s *dynamicStreamer) update() error {
 		}
 	}
 
-	if s.gain != 0 {
+	if s.gain != 1 {
 		streamer = &effects.Gain{
 			Streamer: streamer,
-			Gain:     s.gain,
+			Gain:     s.gain - 1,
 		}
 	}
 

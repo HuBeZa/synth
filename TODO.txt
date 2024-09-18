@@ -1,7 +1,6 @@
 TODOs:
  - tremolo view to oscillator
  - pan + gain to base controller?
- - minus gain to reduce volume? (normalize 0-n)
  - envelopes:
     - Attack-Release
     - ADSR
@@ -11,9 +10,10 @@ TODOs:
  - overtones?
  - save & load
  - sequence loop?
- - separate keyboard from view
-
+ - separate keyboard from view?
+ - distortion?
 
 Done:
  - fix tremolo view
  - reverse tremolo
+ - minus gain to reduce volume? (normalize 0-n)

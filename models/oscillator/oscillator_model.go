@@ -76,7 +76,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 	m.waveformOptions = options.New(streamers.AllWaveforms())
 	m.octaveSlider, _ = slider.New(-1, 6, 1, 3, 3)
 	m.panSlider, _ = slider.New(-panSliderRatio, panSliderRatio, 1, 0, 0)
-	m.gainSlider, _ = slider.New(0, gainSliderRatio*4, 1, 0, gainSliderRatio, gainSliderRatio*2, gainSliderRatio*3)
+	m.gainSlider, _ = slider.New(0, gainSliderRatio*4, 1, gainSliderRatio, gainSliderRatio, gainSliderRatio*2, gainSliderRatio*3)
 	m.freqSlider, _ = slider.New(0, len(m.currentOctave())-1, 1, 0, cFreqIndexes...)
 	m.zonePrefix = zone.NewPrefix()
 	m.zoneHandlers = map[string]func(model, tea.MouseMsg) (tea.Model, tea.Cmd){

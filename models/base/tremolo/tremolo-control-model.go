@@ -197,8 +197,3 @@ func (m model) Pulsing() bool {
 func (m model) Reverse() bool {
 	return m.reverseCheckbox.Value()
 }
-
-// func main() {
-// 	zone.NewGlobal()
-// 	fmt.Println(New().View())
-// }

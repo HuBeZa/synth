@@ -107,7 +107,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 	m.waveformOptions = options.New(streamers.AllWaveforms())
 	m.octaveSlider, _ = slider.New(-1, 9, 1, 3, 4)
 	m.panSlider, _ = slider.New(-panSliderRatio, panSliderRatio, 1, 0, 0)
-	m.gainSlider, _ = slider.New(0, gainSliderRatio*4, 1, 0, gainSliderRatio, gainSliderRatio*2, gainSliderRatio*3)
+	m.gainSlider, _ = slider.New(0, gainSliderRatio*4, 1, gainSliderRatio, gainSliderRatio, gainSliderRatio*2, gainSliderRatio*3)
 	m.tremoloCtrl = tremolo.New()
 	m.zonePrefix = zone.NewPrefix()
 	m.zoneHandlers = map[string]func(model, tea.MouseMsg) (tea.Model, tea.Cmd){
@@ -122,7 +122,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 		m.zonePrefix + tremoloCtrlId:     tremoloCtrlHandler,
 	}
 
-	m.streamer, _ = streamers.NewWaveformDynamicStreamer(sr, 0, 0, 1, streamers.Sine)
+	m.streamer, _ = streamers.NewWaveformDynamicStreamer(sr, 0, m.currentPan(), m.currentGain(), m.currentWaveform())
 	m.streamer.Silence()
 
 	return m
@@ -163,7 +163,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.currKey = key
 				m.currFreq = freq
-				keyPressTimeout = 300
+				keyPressTimeout = 280
 			}
 
 			m.keyPressTimer = timer.NewWithInterval(time.Duration(keyPressTimeout)*time.Millisecond, 10*time.Millisecond)
