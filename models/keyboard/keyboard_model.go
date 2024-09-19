@@ -11,12 +11,13 @@ import (
 	"github.com/gopxl/beep/v2"
 	zone "github.com/lrstanley/bubblezone"
 
-	"github.com/HuBeZa/synth/frequencies"
 	"github.com/HuBeZa/synth/models"
 	"github.com/HuBeZa/synth/models/base/options"
+	"github.com/HuBeZa/synth/models/base/overtones"
 	"github.com/HuBeZa/synth/models/base/slider"
 	"github.com/HuBeZa/synth/models/base/tremolo"
 	"github.com/HuBeZa/synth/streamers"
+	"github.com/HuBeZa/synth/streamers/frequencies"
 )
 
 const (
@@ -40,14 +41,14 @@ const (
 		"│  └┬┘ └┬┘  │  └┬┘ └┬┘ └┬┘  │  └┬┘ └┬┘  │\n" +
 		"│   │   │   │   │   │   │   │   │   │   │\n" +
 		"│ a │ s │ d │ f │ g │ h │ j │ k │ l │ ; │\n" +
-		"└───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘\n"
+		"└───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘"
 
 	keyboard = "" +
 		"╒══╤═╤═╤═╤══╤══╤═╤═╤═╤═╤═╤══╤══╤═╤═╤═╤══╕\n" +
 		"│  │w│ │e│  │  │t│ │y│ │u│  │  │o│ │p│  │\n" +
 		"│  └┬┘ └┬┘  │  └┬┘ └┬┘ └┬┘  │  └┬┘ └┬┘  │\n" +
 		"│ a │ s │ d │ f │ g │ h │ j │ k │ l │ ; │\n" +
-		"└───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘\n"
+		"└───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘"
 
 	panSliderRatio  = 10
 	gainSliderRatio = 5
@@ -61,6 +62,7 @@ const (
 	octaveSliderId    = "octaveSlider"
 	panSliderId       = "panSlider"
 	gainSliderId      = "gainSlider"
+	overtonesCtrlId   = "overtonesCtrl"
 	tremoloCtrlId     = "tremoloCtrl"
 )
 
@@ -74,7 +76,7 @@ func initOctaveToKeys() map[int]map[string]frequencies.Frequency {
 	keys := []string{"a", "w", "s", "e", "d", "f", "t", "g", "y", "h", "u", "j", "k", "o", "l", "p", ";"}
 
 	baseLow := frequencies.C0
-	baseHigh := baseLow.ShiftTone(len(keys) - 1)
+	baseHigh := baseLow.ShiftSemitone(len(keys) - 1)
 
 	for octaveId := -1; octaveId <= 9; octaveId++ {
 		octavesMap[octaveId] = make(map[string]frequencies.Frequency, len(keys))
@@ -91,6 +93,7 @@ type model struct {
 	octaveSlider    slider.Model
 	panSlider       slider.Model
 	gainSlider      slider.Model
+	overtonesCtrl   overtones.Model
 	tremoloCtrl     tremolo.Model
 
 	isSilenced    bool
@@ -108,6 +111,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 	m.octaveSlider, _ = slider.New(-1, 9, 1, 3, 4)
 	m.panSlider, _ = slider.New(-panSliderRatio, panSliderRatio, 1, 0, 0)
 	m.gainSlider, _ = slider.New(0, gainSliderRatio*4, 1, gainSliderRatio, gainSliderRatio, gainSliderRatio*2, gainSliderRatio*3)
+	m.overtonesCtrl = overtones.New()
 	m.tremoloCtrl = tremolo.New()
 	m.zonePrefix = zone.NewPrefix()
 	m.zoneHandlers = map[string]func(model, tea.MouseMsg) (tea.Model, tea.Cmd){
@@ -119,10 +123,11 @@ func New(sr beep.SampleRate) models.StreamerModel {
 		m.zonePrefix + octaveSliderId:    octaveSliderHandler,
 		m.zonePrefix + panSliderId:       panSliderHandler,
 		m.zonePrefix + gainSliderId:      gainSliderHandler,
+		m.zonePrefix + overtonesCtrlId:   overtonesCtrlHandler,
 		m.zonePrefix + tremoloCtrlId:     tremoloCtrlHandler,
 	}
 
-	m.streamer, _ = streamers.NewWaveformDynamicStreamer(sr, 0, m.currentPan(), m.currentGain(), m.currentWaveform())
+	m.streamer, _ = streamers.NewWaveformDynamicStreamer(sr, frequencies.New(0), m.currentPan(), m.currentGain(), m.currentWaveform())
 	m.streamer.Silence()
 
 	return m
@@ -158,7 +163,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if key != m.currKey {
 				freq := octaveToKeys[m.octaveSlider.Value()][key]
 				if !m.isSilenced {
-					m.streamer.SetFrequency(freq.Frequency())
+					m.streamer.SetFrequency(freq)
 					m.streamer.Unsilence()
 				}
 				m.currKey = key
@@ -239,6 +244,13 @@ func gainSliderHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func overtonesCtrlHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	overtonesModel, cmd := m.overtonesCtrl.Update(msg)
+	m.overtonesCtrl = overtonesModel.(overtones.Model)
+	m.streamer.SetOvertones(m.overtonesCtrl.Count(), m.overtonesCtrl.Gain())
+	return m, cmd
+}
+
 func tremoloCtrlHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	tremoloModel, cmd := m.tremoloCtrl.Update(msg)
 	m.tremoloCtrl = tremoloModel.(tremolo.Model)
@@ -259,6 +271,7 @@ func (m model) View() string {
 		m.renderOctaveSlider(),
 		m.renderPanSlider(),
 		m.renderGainSlider(),
+		m.renderOvertonesCtrl(),
 		m.renderTremoloCtrl())
 }
 
@@ -323,6 +336,11 @@ func (m model) renderPanSlider() string {
 func (m model) renderGainSlider() string {
 	id := m.zonePrefix + gainSliderId
 	return models.LabelStyle().Render("gain") + zone.Mark(id, m.gainSlider.View()) + fmt.Sprintf(" %v", m.streamer.Gain())
+}
+
+func (m model) renderOvertonesCtrl() string {
+	id := m.zonePrefix + overtonesCtrlId
+	return zone.Mark(id, m.overtonesCtrl.View())
 }
 
 func (m model) renderTremoloCtrl() string {

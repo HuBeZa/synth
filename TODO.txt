@@ -1,19 +1,25 @@
 TODOs:
  - tremolo view to oscillator
  - pan + gain to base controller?
- - envelopes:
-    - Attack-Release
-    - ADSR
- - Chords
- - vibrato?
- - chorus?
- - overtones?
- - save & load
+ - multiple waves effects:
+    - Chords
+    - chorus? https://www.avid.com/resource-center/chorus-effect
+ - simple wave manipulation effects:
+    - distortion?
+    - rotary effect
+ - frequency shift effects:
+    - vibrato?
+    - envelopes: (use beep effects.Transition?)
+        - Attack-Release
+        - ADSR
+ - save & load presets
  - sequence loop?
  - separate keyboard from view?
- - distortion?
+ - coder reuse zoneHandlers
 
 Done:
  - fix tremolo view
  - reverse tremolo
  - minus gain to reduce volume? (normalize 0-n)
+ - multiple waves effects:
+    - overtones

@@ -9,11 +9,11 @@ import (
 	"github.com/gopxl/beep/v2"
 	zone "github.com/lrstanley/bubblezone"
 
-	"github.com/HuBeZa/synth/frequencies"
 	"github.com/HuBeZa/synth/models"
 	"github.com/HuBeZa/synth/models/base/options"
 	"github.com/HuBeZa/synth/models/base/slider"
 	"github.com/HuBeZa/synth/streamers"
+	"github.com/HuBeZa/synth/streamers/frequencies"
 )
 
 const (
@@ -92,7 +92,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 	}
 
 	var err error
-	m.streamer, err = streamers.NewWaveformDynamicStreamer(sr, m.currentFrequency().Frequency(), m.currentPan(), m.currentGain(), m.currentWaveform())
+	m.streamer, err = streamers.NewWaveformDynamicStreamer(sr, m.currentFrequency(), m.currentPan(), m.currentGain(), m.currentWaveform())
 	if err != nil {
 		panic(err)
 	}
@@ -165,7 +165,7 @@ func waveformOptionsHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 func octaveSliderHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	sliderModel, cmd := m.octaveSlider.Update(msg)
 	m.octaveSlider = sliderModel.(slider.Model)
-	m.streamer.SetFrequency(m.currentFrequency().Frequency())
+	m.streamer.SetFrequency(m.currentFrequency())
 	return m, cmd
 }
 
@@ -186,7 +186,7 @@ func gainSliderHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 func freqSliderHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	sliderModel, cmd := m.freqSlider.Update(msg)
 	m.freqSlider = sliderModel.(slider.Model)
-	m.streamer.SetFrequency(m.currentFrequency().Frequency())
+	m.streamer.SetFrequency(m.currentFrequency())
 	return m, cmd
 }
 

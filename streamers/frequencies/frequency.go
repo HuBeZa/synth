@@ -2,10 +2,16 @@ package frequencies
 
 import (
 	"fmt"
+	"math"
 	"slices"
 )
 
+const (
+	unknownMidiId = -999
+)
+
 // source: https://en.wikipedia.org/wiki/Scientific_pitch_notation#Table_of_note_frequencies
+// TODO: change to funcs to make readonly
 var (
 	CMinus1      Frequency = frequency{`C-1`, 8.175799, 0}
 	DFlatMinus1  Frequency = frequency{`C♯/D♭-1`, 8.661957, 1}
@@ -92,7 +98,7 @@ var (
 	G3      Frequency = frequency{`G3`, 195.9977, 55}
 	GSharp3 Frequency = frequency{`A♭/G♯3`, 207.6523, 56}
 	AFlat3  Frequency = GSharp3
-	A3      Frequency = frequency{`A3`, 220.0000, 57} // 220 * (1+1/12) = 220 * 1.0833333333333333 =
+	A3      Frequency = frequency{`A3`, 220.0000, 57}
 	ASharp3 Frequency = frequency{`B♭/A♯3`, 233.0819, 58}
 	BFlat3  Frequency = ASharp3
 	B3      Frequency = frequency{`B3`, 246.9417, 59}
@@ -198,30 +204,30 @@ var (
 	GFlat9  Frequency = frequency{`F♯/G♭9`, 11839.82, 126}
 	FSharp9 Frequency = GFlat9
 	G9      Frequency = frequency{`G9`, 12543.85, 127}
-	GSharp9 Frequency = frequency{`A♭/G♯9`, 13289.75, -999}
+	GSharp9 Frequency = frequency{`A♭/G♯9`, 13289.75, unknownMidiId}
 	AFlat9  Frequency = GSharp9
-	A9      Frequency = frequency{`A9`, 14080.00, -999}
-	ASharp9 Frequency = frequency{`B♭/A♯9`, 14917.24, -999}
+	A9      Frequency = frequency{`A9`, 14080.00, unknownMidiId}
+	ASharp9 Frequency = frequency{`B♭/A♯9`, 14917.24, unknownMidiId}
 	BFlat9  Frequency = ASharp9
-	B9      Frequency = frequency{`B9`, 15804.27, -999}
+	B9      Frequency = frequency{`B9`, 15804.27, unknownMidiId}
 
-	C10      Frequency = frequency{`C10`, 16744.04, -999}
-	DFlat10  Frequency = frequency{`C♯/D♭10`, 17739.69, -999}
+	C10      Frequency = frequency{`C10`, 16744.04, unknownMidiId}
+	DFlat10  Frequency = frequency{`C♯/D♭10`, 17739.69, unknownMidiId}
 	CSharp10 Frequency = DFlat10
-	D10      Frequency = frequency{`D10`, 18794.55, -999}
-	DSharp10 Frequency = frequency{`E♭/D♯10`, 19912.13, -999}
+	D10      Frequency = frequency{`D10`, 18794.55, unknownMidiId}
+	DSharp10 Frequency = frequency{`E♭/D♯10`, 19912.13, unknownMidiId}
 	EFlat10  Frequency = DSharp10
-	E10      Frequency = frequency{`E10`, 21096.16, -999}
-	F10      Frequency = frequency{`F10`, 22350.61, -999}
-	GFlat10  Frequency = frequency{`F♯/G♭10`, 23679.64, -999}
+	E10      Frequency = frequency{`E10`, 21096.16, unknownMidiId}
+	F10      Frequency = frequency{`F10`, 22350.61, unknownMidiId}
+	GFlat10  Frequency = frequency{`F♯/G♭10`, 23679.64, unknownMidiId}
 	FSharp10 Frequency = GFlat10
-	G10      Frequency = frequency{`G10`, 25087.71, -999}
-	GSharp10 Frequency = frequency{`A♭/G♯10`, 26579.50, -999}
+	G10      Frequency = frequency{`G10`, 25087.71, unknownMidiId}
+	GSharp10 Frequency = frequency{`A♭/G♯10`, 26579.50, unknownMidiId}
 	AFlat10  Frequency = GSharp10
-	A10      Frequency = frequency{`A10`, 28160.00, -999}
-	ASharp10 Frequency = frequency{`B♭/A♯10`, 29834.48, -999}
+	A10      Frequency = frequency{`A10`, 28160.00, unknownMidiId}
+	ASharp10 Frequency = frequency{`B♭/A♯10`, 29834.48, unknownMidiId}
 	BFlat10  Frequency = ASharp10
-	B10      Frequency = frequency{`B10`, 31608.53, -999}
+	B10      Frequency = frequency{`B10`, 31608.53, unknownMidiId}
 
 	frequencies = []Frequency{
 		CMinus1, DFlatMinus1, DMinus1, DSharpMinus1, EMinus1, FMinus1, GFlatMinus1, GMinus1, GSharpMinus1, AMinus1, ASharpMinus1, BMinus1,
@@ -239,6 +245,8 @@ var (
 	}
 
 	frequencyIndexes = initFrequencyIndexes()
+
+	semitoneMultiplier = math.Pow(2, 1.0/12)
 )
 
 func initFrequencyIndexes() map[float64]int {
@@ -253,9 +261,22 @@ type Frequency interface {
 	Name() string
 	Frequency() float64
 	MidiID() int
-	ShiftTone(toneDiff int) Frequency
-	ShiftOctave(octaveDiff int) Frequency
+	ShiftSemitone(semitonesDiff int) Frequency
+	ShiftOctave(octavesDiff int) Frequency
 	fmt.Stringer
+}
+
+func New(freq float64) Frequency {
+	if i, ok := frequencyIndexes[freq]; ok {
+		// return known frequency
+		return frequencies[i]
+	}
+
+	return frequency{
+		name:      fmt.Sprintf("%vHz", freq),
+		frequency: freq,
+		midiId:    unknownMidiId,
+	}
 }
 
 func GetRange(from, to Frequency) []Frequency {
@@ -304,20 +325,24 @@ func (f frequency) String() string {
 	return f.name
 }
 
-func (f frequency) ShiftTone(toneDiff int) Frequency {
+func (f frequency) ShiftSemitone(semitonesDiff int) Frequency {
 	i, ok := frequencyIndexes[f.frequency]
 	if !ok {
-		return f
+		return shiftSemitone(f.frequency, semitonesDiff)
 	}
 
-	newIndex := i + toneDiff
+	newIndex := i + semitonesDiff
 	if newIndex < 0 || newIndex >= len(frequencies) {
-		return f
+		return shiftSemitone(f.frequency, semitonesDiff)
 	}
 
 	return frequencies[newIndex]
 }
 
-func (f frequency) ShiftOctave(octaveDiff int) Frequency {
-	return f.ShiftTone(octaveDiff * 12)
+func (f frequency) ShiftOctave(octavesDiff int) Frequency {
+	return f.ShiftSemitone(octavesDiff * 12)
+}
+
+func shiftSemitone(freq float64, semitonesDiff int) Frequency {
+	return New(freq * math.Pow(semitoneMultiplier, float64(semitonesDiff)))
 }

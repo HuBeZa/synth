@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/HuBeZa/synth/streamers/frequencies"
 	"github.com/gopxl/beep/v2"
 	"github.com/gopxl/beep/v2/effects"
 	"github.com/gopxl/beep/v2/generators"
@@ -26,24 +27,34 @@ type DynamicStreamer interface {
 	SetPan(pan float64) error
 	Gain() float64
 	SetGain(gain float64) error
+	Frequency() frequencies.Frequency
+	SetFrequency(freq frequencies.Frequency) error
 	SetTremolo(duration time.Duration, startGain, endGain float64, pulsing bool) error
 	SetTremoloOff() error
-	Frequency() float64
-	SetFrequency(freq float64) error
+	SetOvertones(count int, gain float64) error
 	Waveform() Waveform
 	SetWaveform(waveform Waveform) error
 	SetGenerator(streamerGenerator StreamerGeneratorFunc) error
 }
 
 type dynamicStreamer struct {
-	silenced   atomic.Bool
+	streamerArgs streamerArgs
+	waveform     Waveform
+	silenced     atomic.Bool
+	streamer     atomic.Pointer[beep.Streamer]
+
+	overtones struct {
+		count int
+		gain  float64
+	}
+}
+
+type streamerArgs struct {
 	sampleRate beep.SampleRate
+	generator  StreamerGeneratorFunc
+	frequency  frequencies.Frequency
 	pan        float64
 	gain       float64
-	frequency  float64
-	waveform   Waveform
-	generator  StreamerGeneratorFunc
-	streamer   atomic.Pointer[beep.Streamer]
 
 	tremolo struct {
 		isOn      bool
@@ -54,7 +65,7 @@ type dynamicStreamer struct {
 	}
 }
 
-func NewWaveformDynamicStreamer(sampleRate beep.SampleRate, freq, pan, gain float64, waveform Waveform) (DynamicStreamer, error) {
+func NewWaveformDynamicStreamer(sampleRate beep.SampleRate, freq frequencies.Frequency, pan, gain float64, waveform Waveform) (DynamicStreamer, error) {
 	generator, err := waveform.streamerGenerator()
 	if err != nil {
 		return nil, err
@@ -63,13 +74,15 @@ func NewWaveformDynamicStreamer(sampleRate beep.SampleRate, freq, pan, gain floa
 	return NewDynamicStreamer(sampleRate, freq, pan, gain, generator)
 }
 
-func NewDynamicStreamer(sampleRate beep.SampleRate, freq, pan, gain float64, streamerGenerator StreamerGeneratorFunc) (DynamicStreamer, error) {
+func NewDynamicStreamer(sampleRate beep.SampleRate, freq frequencies.Frequency, pan, gain float64, streamerGenerator StreamerGeneratorFunc) (DynamicStreamer, error) {
 	s := &dynamicStreamer{
-		sampleRate: sampleRate,
-		generator:  streamerGenerator,
-		frequency:  freq,
-		pan:        pan,
-		gain:       gain,
+		streamerArgs: streamerArgs{
+			sampleRate: sampleRate,
+			generator:  streamerGenerator,
+			frequency:  freq,
+			pan:        pan,
+			gain:       gain,
+		},
 	}
 
 	if err := s.update(); err != nil {
@@ -114,18 +127,18 @@ func (s *dynamicStreamer) ToggleSilence() {
 }
 
 func (s *dynamicStreamer) Pan() float64 {
-	return s.pan
+	return s.streamerArgs.pan
 }
 
 func (s *dynamicStreamer) SetPan(pan float64) error {
-	if pan == s.pan {
+	if pan == s.streamerArgs.pan {
 		return nil
 	}
 
-	orig := s.pan
-	s.pan = pan
+	orig := s.streamerArgs.pan
+	s.streamerArgs.pan = pan
 	if err := s.update(); err != nil {
-		s.pan = orig
+		s.streamerArgs.pan = orig
 		return err
 	}
 
@@ -133,18 +146,18 @@ func (s *dynamicStreamer) SetPan(pan float64) error {
 }
 
 func (s *dynamicStreamer) Gain() float64 {
-	return s.gain
+	return s.streamerArgs.gain
 }
 
 func (s *dynamicStreamer) SetGain(gain float64) error {
-	if gain == s.gain {
+	if gain == s.streamerArgs.gain {
 		return nil
 	}
 
-	orig := s.gain
-	s.gain = gain
+	orig := s.streamerArgs.gain
+	s.streamerArgs.gain = gain
 	if err := s.update(); err != nil {
-		s.gain = orig
+		s.streamerArgs.gain = orig
 		return err
 	}
 
@@ -152,19 +165,19 @@ func (s *dynamicStreamer) SetGain(gain float64) error {
 }
 
 func (s *dynamicStreamer) SetTremolo(duration time.Duration, startGain, endGain float64, pulsing bool) error {
-	orig := s.tremolo
-	s.tremolo.isOn = true
-	s.tremolo.length = s.sampleRate.N(duration)
-	s.tremolo.startGain = startGain
-	s.tremolo.endGain = endGain
-	s.tremolo.pulsing = pulsing
+	orig := s.streamerArgs.tremolo
+	s.streamerArgs.tremolo.isOn = true
+	s.streamerArgs.tremolo.length = s.streamerArgs.sampleRate.N(duration)
+	s.streamerArgs.tremolo.startGain = startGain
+	s.streamerArgs.tremolo.endGain = endGain
+	s.streamerArgs.tremolo.pulsing = pulsing
 
-	if orig == s.tremolo {
+	if orig == s.streamerArgs.tremolo {
 		return nil
 	}
 
 	if err := s.update(); err != nil {
-		s.tremolo = orig
+		s.streamerArgs.tremolo = orig
 		return err
 	}
 
@@ -172,32 +185,49 @@ func (s *dynamicStreamer) SetTremolo(duration time.Duration, startGain, endGain 
 }
 
 func (s *dynamicStreamer) SetTremoloOff() error {
-	if !s.tremolo.isOn {
+	if !s.streamerArgs.tremolo.isOn {
 		return nil
 	}
 
-	s.tremolo.isOn = false
+	s.streamerArgs.tremolo.isOn = false
 	if err := s.update(); err != nil {
-		s.tremolo.isOn = true
+		s.streamerArgs.tremolo.isOn = true
 		return err
 	}
 
 	return nil
 }
 
-func (s *dynamicStreamer) Frequency() float64 {
-	return s.frequency
-}
-
-func (s *dynamicStreamer) SetFrequency(freq float64) error {
-	if freq == s.frequency {
+func (s *dynamicStreamer) SetOvertones(count int, gain float64) error {
+	if s.overtones.count == count && s.overtones.gain == gain {
 		return nil
 	}
 
-	orig := s.frequency
-	s.frequency = freq
+	orig := s.overtones
+	s.overtones.count = count
+	s.overtones.gain = gain
+
 	if err := s.update(); err != nil {
-		s.frequency = orig
+		s.overtones = orig
+		return err
+	}
+
+	return nil
+}
+
+func (s *dynamicStreamer) Frequency() frequencies.Frequency {
+	return s.streamerArgs.frequency
+}
+
+func (s *dynamicStreamer) SetFrequency(freq frequencies.Frequency) error {
+	if freq.Frequency() == s.streamerArgs.frequency.Frequency() {
+		return nil
+	}
+
+	orig := s.streamerArgs.frequency
+	s.streamerArgs.frequency = freq
+	if err := s.update(); err != nil {
+		s.streamerArgs.frequency = orig
 		return err
 	}
 
@@ -226,10 +256,10 @@ func (s *dynamicStreamer) SetGenerator(streamerGenerator StreamerGeneratorFunc) 
 }
 
 func (s *dynamicStreamer) setGenerator(waveform Waveform, streamerGenerator StreamerGeneratorFunc) error {
-	orig := s.generator
-	s.generator = streamerGenerator
+	orig := s.streamerArgs.generator
+	s.streamerArgs.generator = streamerGenerator
 	if err := s.update(); err != nil {
-		s.generator = orig
+		s.streamerArgs.generator = orig
 		return err
 	}
 	s.waveform = waveform
@@ -237,39 +267,69 @@ func (s *dynamicStreamer) setGenerator(waveform Waveform, streamerGenerator Stre
 }
 
 func (s *dynamicStreamer) update() error {
-	if s.generator == nil {
-		return fmt.Errorf("streamer generator is empty")
-	}
-	if s.pan < -1 || s.pan > 1 {
-		return fmt.Errorf("pan should be between -1 (left channel) to 1 (right channel)")
-	}
-
-	streamer, err := s.generator(s.sampleRate, s.frequency)
+	streamer, err := createStreamer(s.streamerArgs)
 	if err != nil {
 		return err
 	}
 
-	if s.pan != 0 {
-		streamer = &effects.Pan{
-			Streamer: streamer,
-			Pan:      s.pan,
-		}
-	}
-
-	if s.gain != 1 {
-		streamer = &effects.Gain{
-			Streamer: streamer,
-			Gain:     s.gain - 1,
-		}
-	}
-
-	// streamer = effects.Transition(streamer, s.sampleRate.N(time.Second/2), 2.5, 0, effects.TransitionLinear)
-	// streamer = Tremolo(streamer, s.sampleRate.N(time.Second/2), 0.5, 1, false)
-
-	if s.tremolo.isOn {
-		streamer = Tremolo(streamer, s.tremolo.length, s.tremolo.startGain, s.tremolo.endGain, s.tremolo.pulsing)
+	if s.overtones.count > 0 {
+		streamer = s.addOvertones(streamer)
 	}
 
 	s.streamer.Store(&streamer)
 	return nil
+}
+
+func (s *dynamicStreamer) addOvertones(mainStreamer beep.Streamer) beep.Streamer {
+	mixer := &beep.Mixer{}
+	mixer.Add(mainStreamer)
+
+	for i := 1; i <= s.overtones.count; i++ {
+		argsCopy := s.streamerArgs
+		argsCopy.frequency = s.streamerArgs.frequency.ShiftOctave(i)
+		argsCopy.gain *= s.overtones.gain
+
+		// note that some overtones may not be created because they will overpass sampleRate/2
+		if overtone, err := createStreamer(argsCopy); err == nil {
+			mixer.Add(overtone)
+		}
+	}
+
+	return mixer
+}
+
+func createStreamer(args streamerArgs) (beep.Streamer, error) {
+	if args.generator == nil {
+		return nil, fmt.Errorf("streamer generator is empty")
+	}
+	if args.pan < -1 || args.pan > 1 {
+		return nil, fmt.Errorf("pan should be between -1 (left channel) to 1 (right channel)")
+	}
+
+	streamer, err := args.generator(args.sampleRate, args.frequency.Frequency())
+	if err != nil {
+		return nil, err
+	}
+
+	if args.pan != 0 {
+		streamer = &effects.Pan{
+			Streamer: streamer,
+			Pan:      args.pan,
+		}
+	}
+
+	if args.gain != 1 {
+		streamer = &effects.Gain{
+			Streamer: streamer,
+			Gain:     args.gain - 1,
+		}
+	}
+
+	// streamer = effects.Transition(streamer, s.sampleRate.N(time.Second/2), 2.5, 0, effects.TransitionLinear)
+
+	if args.tremolo.isOn {
+		streamer = Tremolo(streamer, args.tremolo.length, args.tremolo.startGain, args.tremolo.endGain, args.tremolo.pulsing)
+	}
+
+	return streamer, nil
 }
