@@ -38,7 +38,7 @@ var (
 )
 
 func initOctaveToFrequencies() map[int][]frequencies.Frequency {
-	baseLow := frequencies.C0
+	baseLow := frequencies.C0()
 	baseHigh := baseLow.ShiftOctave(4)
 
 	octaveToFrequencies := make(map[int][]frequencies.Frequency, 7)

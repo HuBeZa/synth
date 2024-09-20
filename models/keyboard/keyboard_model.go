@@ -75,7 +75,7 @@ func initOctaveToKeys() map[int]map[string]frequencies.Frequency {
 	octavesMap := make(map[int]map[string]frequencies.Frequency, 11)
 	keys := []string{"a", "w", "s", "e", "d", "f", "t", "g", "y", "h", "u", "j", "k", "o", "l", "p", ";"}
 
-	baseLow := frequencies.C0
+	baseLow := frequencies.C0()
 	baseHigh := baseLow.ShiftSemitone(len(keys) - 1)
 
 	for octaveId := -1; octaveId <= 9; octaveId++ {
@@ -127,7 +127,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 		m.zonePrefix + tremoloCtrlId:     tremoloCtrlHandler,
 	}
 
-	m.streamer, _ = streamers.NewWaveformDynamicStreamer(sr, frequencies.New(0), m.currentPan(), m.currentGain(), m.currentWaveform())
+	m.streamer, _ = streamers.NewWaveformDynamicStreamer(sr, frequencies.Silence(), m.currentPan(), m.currentGain(), m.currentWaveform())
 	m.streamer.Silence()
 
 	return m

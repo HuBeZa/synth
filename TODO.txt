@@ -1,6 +1,5 @@
 TODOs:
  - tremolo view to oscillator
- - pan + gain to base controller?
  - multiple waves effects:
     - Chords
     - chorus? https://www.avid.com/resource-center/chorus-effect
@@ -21,5 +20,6 @@ Done:
  - fix tremolo view
  - reverse tremolo
  - minus gain to reduce volume? (normalize 0-n)
+ - refactor frequency.go
  - multiple waves effects:
     - overtones
