@@ -32,7 +32,7 @@ type model struct {
 	countSlider  slider.Model
 	gainSlider   slider.Model
 	zonePrefix   string
-	zoneHandlers map[string]func(model, tea.MouseMsg) (tea.Model, tea.Cmd)
+	zoneHandlers models.ZoneHandlers[model]
 }
 
 func New() Model {
@@ -41,7 +41,7 @@ func New() Model {
 	m.gainSlider, _ = slider.New(0, 2*gainSliderRatio, 1, gainSliderRatio, gainSliderRatio)
 
 	m.zonePrefix = zone.NewPrefix()
-	m.zoneHandlers = map[string]func(model, tea.MouseMsg) (tea.Model, tea.Cmd){
+	m.zoneHandlers = models.ZoneHandlers[model]{
 		m.zonePrefix + countSliderId: countSliderHandler,
 		m.zonePrefix + gainSliderId:  gainSliderHandler,
 	}
@@ -56,11 +56,7 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
-		for id, handler := range m.zoneHandlers {
-			if zone.Get(id).InBounds(msg) {
-				return handler(m, msg)
-			}
-		}
+		return m.zoneHandlers.Handle(m, msg)
 	}
 	return m, nil
 }

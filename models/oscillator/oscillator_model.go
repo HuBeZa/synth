@@ -34,7 +34,7 @@ const (
 
 var (
 	octaveToFrequencies = initOctaveToFrequencies()
-	cFreqIndexes       = initCFreqIndexes()
+	cFreqIndexes        = initCFreqIndexes()
 )
 
 func initOctaveToFrequencies() map[int][]frequencies.Frequency {
@@ -68,7 +68,7 @@ type model struct {
 	freqSlider      slider.Model
 	streamer        streamers.DynamicStreamer
 	zonePrefix      string
-	zoneHandlers    map[string]func(model, tea.MouseMsg) (tea.Model, tea.Cmd)
+	zoneHandlers    models.ZoneHandlers[model]
 }
 
 func New(sr beep.SampleRate) models.StreamerModel {
@@ -79,7 +79,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 	m.gainSlider, _ = slider.New(0, gainSliderRatio*4, 1, gainSliderRatio, gainSliderRatio, gainSliderRatio*2, gainSliderRatio*3)
 	m.freqSlider, _ = slider.New(0, len(m.currentOctave())-1, 1, 0, cFreqIndexes...)
 	m.zonePrefix = zone.NewPrefix()
-	m.zoneHandlers = map[string]func(model, tea.MouseMsg) (tea.Model, tea.Cmd){
+	m.zoneHandlers = models.ZoneHandlers[model]{
 		m.zonePrefix + upButtonId:        upButtonHandler,
 		m.zonePrefix + downButtonId:      downButtonHandler,
 		m.zonePrefix + closeButtonId:     closeButtonHandler,
@@ -118,11 +118,7 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
-		for id, handler := range m.zoneHandlers {
-			if zone.Get(id).InBounds(msg) {
-				return handler(m, msg)
-			}
-		}
+		return m.zoneHandlers.Handle(m, msg)
 	}
 	return m, nil
 }

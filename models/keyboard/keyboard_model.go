@@ -102,7 +102,7 @@ type model struct {
 	currFreq      frequencies.Frequency
 	streamer      streamers.DynamicStreamer
 	zonePrefix    string
-	zoneHandlers  map[string]func(model, tea.MouseMsg) (tea.Model, tea.Cmd)
+	zoneHandlers  models.ZoneHandlers[model]
 }
 
 func New(sr beep.SampleRate) models.StreamerModel {
@@ -114,7 +114,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 	m.overtonesCtrl = overtones.New()
 	m.tremoloCtrl = tremolo.New()
 	m.zonePrefix = zone.NewPrefix()
-	m.zoneHandlers = map[string]func(model, tea.MouseMsg) (tea.Model, tea.Cmd){
+	m.zoneHandlers = models.ZoneHandlers[model]{
 		m.zonePrefix + upButtonId:        upButtonHandler,
 		m.zonePrefix + downButtonId:      downButtonHandler,
 		m.zonePrefix + closeButtonId:     closeButtonHandler,
@@ -151,11 +151,7 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
-		for id, handler := range m.zoneHandlers {
-			if zone.Get(id).InBounds(msg) {
-				return handler(m, msg)
-			}
-		}
+		return m.zoneHandlers.Handle(m, msg)
 	case tea.KeyMsg:
 		switch key := msg.String(); key {
 		case "a", "w", "s", "e", "d", "f", "t", "g", "y", "h", "u", "j", "k", "o", "l", "p", ";":

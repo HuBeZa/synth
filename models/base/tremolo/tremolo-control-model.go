@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
 
+	"github.com/HuBeZa/synth/models"
 	"github.com/HuBeZa/synth/models/base/checkbox"
 	"github.com/HuBeZa/synth/models/base/slider"
 )
@@ -46,7 +47,7 @@ type model struct {
 	pulsingCheckbox checkbox.Model
 	reverseCheckbox checkbox.Model
 	zonePrefix      string
-	zoneHandlers    map[string]func(model, tea.MouseMsg) (tea.Model, tea.Cmd)
+	zoneHandlers    models.ZoneHandlers[model]
 }
 
 func New() Model {
@@ -58,7 +59,7 @@ func New() Model {
 	m.reverseCheckbox = checkbox.New("reverse", false)
 
 	m.zonePrefix = zone.NewPrefix()
-	m.zoneHandlers = map[string]func(model, tea.MouseMsg) (tea.Model, tea.Cmd){
+	m.zoneHandlers = models.ZoneHandlers[model]{
 		m.zonePrefix + isOnCheckboxId:    isOnCheckboxHandler,
 		m.zonePrefix + speedSliderId:     speedSliderHandler,
 		m.zonePrefix + gainSliderId:      gainSliderHandler,
@@ -76,11 +77,7 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
-		for id, handler := range m.zoneHandlers {
-			if zone.Get(id).InBounds(msg) {
-				return handler(m, msg)
-			}
-		}
+		return m.zoneHandlers.Handle(m, msg)
 	}
 	return m, nil
 }

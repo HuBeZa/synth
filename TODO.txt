@@ -14,12 +14,12 @@ TODOs:
  - save & load presets
  - sequence loop?
  - separate keyboard from view?
- - coder reuse zoneHandlers
 
 Done:
  - fix tremolo view
  - reverse tremolo
  - minus gain to reduce volume? (normalize 0-n)
  - refactor frequency.go
+ - coder reuse zoneHandlers
  - multiple waves effects:
     - overtones
