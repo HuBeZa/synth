@@ -73,7 +73,7 @@ type model struct {
 
 func New(sr beep.SampleRate) models.StreamerModel {
 	m := model{}
-	m.waveformOptions = options.New(streamers.AllWaveforms())
+	m.waveformOptions = options.New(streamers.AllWaveforms(), false)
 	m.octaveSlider, _ = slider.New(-1, 6, 1, 3, 3)
 	m.panSlider, _ = slider.New(-panSliderRatio, panSliderRatio, 1, 0, 0)
 	m.gainSlider, _ = slider.New(0, gainSliderRatio*4, 1, gainSliderRatio, gainSliderRatio, gainSliderRatio*2, gainSliderRatio*3)

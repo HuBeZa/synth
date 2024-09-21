@@ -9,35 +9,59 @@ import (
 	zone "github.com/lrstanley/bubblezone"
 )
 
-type Model[T comparable] interface {
+const noneIndex = -1
+
+type equatable[T any] interface {
+	Equals(other T) bool
+}
+
+type Model[T equatable[T]] interface {
 	tea.Model
 	Value() T
 	SetValue(v T) Model[T]
+	ClearValue() Model[T]
 }
 
-type model[T comparable] struct {
+type model[T equatable[T]] struct {
 	cursor     int
 	options    []T
+	allowNone  bool
 	zonePrefix string
 }
 
-func New[T comparable](options []T) Model[T] {
+func New[T equatable[T]](options []T, allowNone bool) Model[T] {
+	cursor := 0
+	if allowNone {
+		cursor = noneIndex
+	}
+	
 	return model[T]{
-		options: options,
+		cursor:     cursor,
+		options:    options,
+		allowNone:  allowNone,
 		zonePrefix: zone.NewPrefix(),
 	}
 }
 
 func (m model[T]) Value() T {
+	if m.cursor == noneIndex {
+		var t T
+		return t
+	}
 	return m.options[m.cursor]
 }
 
 func (m model[T]) SetValue(v T) Model[T] {
 	for i := range m.options {
-		if m.options[i] == v {
+		if m.options[i].Equals(v) {
 			m.cursor = i
 		}
 	}
+	return m
+}
+
+func (m model[T]) ClearValue() Model[T] {
+	m.cursor = noneIndex
 	return m
 }
 
@@ -54,7 +78,11 @@ func (m model[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		for i := range m.options {
 			if zone.Get(m.getZoneId(i)).InBounds(msg) {
-				m.cursor = i
+				if m.allowNone && m.cursor == i {
+					m.cursor = noneIndex
+				} else {
+					m.cursor = i
+				}
 			}
 		}
 	}
@@ -68,7 +96,7 @@ func (m model[T]) View() string {
 		style := lipgloss.NewStyle()
 		if i == m.cursor {
 			button = "◈"
-			style = models.SelectedStyle() 
+			style = models.SelectedStyle()
 		}
 		id := m.getZoneId(i)
 		view := style.Render(fmt.Sprintf("%v %v ", button, m.options[i]))

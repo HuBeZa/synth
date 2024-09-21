@@ -55,6 +55,10 @@ func (f frequency) String() string {
 }
 
 func (f frequency) ShiftSemitone(semitonesDiff int) Frequency {
+	if semitonesDiff == 0 {
+		return f
+	}
+
 	if i, ok := knownFrequencyIndexes[f.frequency]; ok {
 		newIndex := i + semitonesDiff
 		if newIndex >= 0 && newIndex < len(knownFrequencies) {

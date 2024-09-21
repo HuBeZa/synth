@@ -40,6 +40,10 @@ func AllWaveforms() []Waveform {
 	return []Waveform{Sine, Triangle, Square, Sawtooth, ReversedSawtooth}
 }
 
+func (w Waveform) Equals(other Waveform) bool {
+	return w == other
+}
+
 func (w Waveform) String() string {
 	if s, ok := waveformToStr[w]; ok {
 		return s

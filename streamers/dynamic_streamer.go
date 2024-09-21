@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/HuBeZa/synth/streamers/chords"
 	"github.com/HuBeZa/synth/streamers/frequencies"
 	"github.com/gopxl/beep/v2"
 	"github.com/gopxl/beep/v2/effects"
@@ -31,6 +32,8 @@ type DynamicStreamer interface {
 	SetFrequency(freq frequencies.Frequency) error
 	SetTremolo(duration time.Duration, startGain, endGain float64, pulsing bool) error
 	SetTremoloOff() error
+	SetChord(chord chords.ChordType) error
+	SetChordOff() error
 	SetOvertones(count int, gain float64) error
 	Waveform() Waveform
 	SetWaveform(waveform Waveform) error
@@ -43,6 +46,8 @@ type dynamicStreamer struct {
 	silenced     atomic.Bool
 	streamer     atomic.Pointer[beep.Streamer]
 
+	// additional tones effects:
+	chord     chords.ChordType
 	overtones struct {
 		count int
 		gain  float64
@@ -198,6 +203,36 @@ func (s *dynamicStreamer) SetTremoloOff() error {
 	return nil
 }
 
+func (s *dynamicStreamer) SetChord(chord chords.ChordType) error {
+	if chords.Equals(s.chord, chord) {
+		return nil
+	}
+
+	orig := s.chord
+	s.chord = chord
+	if err := s.update(); err != nil {
+		s.chord = orig
+		return err
+	}
+
+	return nil
+}
+
+func (s *dynamicStreamer) SetChordOff() error {
+	if s.chord == nil {
+		return nil
+	}
+
+	orig := s.chord
+	s.chord = nil
+	if err := s.update(); err != nil {
+		s.chord = orig
+		return err
+	}
+
+	return nil
+}
+
 func (s *dynamicStreamer) SetOvertones(count int, gain float64) error {
 	if s.overtones.count == count && s.overtones.gain == gain {
 		return nil
@@ -272,6 +307,10 @@ func (s *dynamicStreamer) update() error {
 		return err
 	}
 
+	if s.chord != nil {
+		streamer = s.addChord(streamer)
+	}
+
 	if s.overtones.count > 0 {
 		streamer = s.addOvertones(streamer)
 	}
@@ -280,9 +319,27 @@ func (s *dynamicStreamer) update() error {
 	return nil
 }
 
-func (s *dynamicStreamer) addOvertones(mainStreamer beep.Streamer) beep.Streamer {
+func (s *dynamicStreamer) addChord(rootStreamer beep.Streamer) beep.Streamer {
 	mixer := &beep.Mixer{}
-	mixer.Add(mainStreamer)
+	for _, semitone := range s.chord.Semitones() {
+		if semitone == 0 {
+			mixer.Add(rootStreamer)
+			continue
+		}
+
+		argsCopy := s.streamerArgs
+		argsCopy.frequency = s.streamerArgs.frequency.ShiftSemitone(semitone)
+		if semitoneStreamer, err := createStreamer(argsCopy); err == nil {
+			mixer.Add(semitoneStreamer)
+		}
+	}
+
+	return mixer
+}
+
+func (s *dynamicStreamer) addOvertones(rootStreamer beep.Streamer) beep.Streamer {
+	mixer := &beep.Mixer{}
+	mixer.Add(rootStreamer)
 
 	for i := 1; i <= s.overtones.count; i++ {
 		argsCopy := s.streamerArgs
