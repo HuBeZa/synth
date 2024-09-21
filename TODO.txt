@@ -1,7 +1,7 @@
 TODOs:
- - tremolo view to oscillator
+ - create base streamerModule
  - multiple waves effects:
-    - Chords
+    - arpeggio (add delay to chords)
     - chorus? https://www.avid.com/resource-center/chorus-effect
  - simple wave manipulation effects:
     - distortion?
@@ -23,3 +23,4 @@ Done:
  - coder reuse zoneHandlers
  - multiple waves effects:
     - overtones
+    - Chords

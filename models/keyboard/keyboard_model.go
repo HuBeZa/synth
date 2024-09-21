@@ -69,8 +69,9 @@ const (
 )
 
 var (
-	octaveToKeys = initOctaveToKeys()
-	currKeyStyle = lipgloss.NewStyle().Reverse(true)
+	octaveToKeys    = initOctaveToKeys()
+	currKeyStyle    = lipgloss.NewStyle().Reverse(true)
+	marginLeftStyle = lipgloss.NewStyle().MarginLeft(1)
 )
 
 func initOctaveToKeys() map[int]map[string]frequencies.Frequency {
@@ -274,9 +275,10 @@ func tremoloCtrlHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left,
 		m.renderHeader(models.ColumnWidth),
-		m.renderKeyboard(),
+		lipgloss.JoinHorizontal(lipgloss.Center,
+			m.renderKeyboard(),
+			m.renderOctaveSlider()),
 		m.renderWaveformOptions(),
-		m.renderOctaveSlider(),
 		m.renderPanSlider(),
 		m.renderGainSlider(),
 		m.renderChordsOptions(),
@@ -334,7 +336,11 @@ func (m model) renderWaveformOptions() string {
 
 func (m model) renderOctaveSlider() string {
 	id := m.zonePrefix + octaveSliderId
-	return models.LabelStyle().Render("octave") + zone.Mark(id, m.octaveSlider.View()) + fmt.Sprintf(" %v", m.octaveSlider.Value())
+	return marginLeftStyle.Render(
+		lipgloss.JoinVertical(lipgloss.Left,
+			"octave:",
+			zone.Mark(id, m.octaveSlider.View())+fmt.Sprintf(" %v", m.octaveSlider.Value())),
+	)
 }
 
 func (m model) renderPanSlider() string {

@@ -189,9 +189,9 @@ func freqSliderHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left,
 		m.renderHeader(models.ColumnWidth),
-		m.renderWaveformOptions(),
 		m.renderOctaveSlider(),
 		m.renderFreqSlider(),
+		m.renderWaveformOptions(),
 		m.renderPanSlider(),
 		m.renderGainSlider())
 }
