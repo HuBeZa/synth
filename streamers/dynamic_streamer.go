@@ -32,7 +32,7 @@ type DynamicStreamer interface {
 	SetFrequency(freq frequencies.Frequency) error
 	SetTremolo(duration time.Duration, startGain, endGain float64, pulsing bool) error
 	SetTremoloOff() error
-	SetChord(chord chords.ChordType) error
+	SetChord(chord chords.ChordType, arpeggioDelay time.Duration) error
 	SetChordOff() error
 	SetOvertones(count int, gain float64) error
 	Waveform() Waveform
@@ -47,7 +47,10 @@ type dynamicStreamer struct {
 	streamer     atomic.Pointer[beep.Streamer]
 
 	// additional tones effects:
-	chord     chords.ChordType
+	chordOptions struct {
+		chord         chords.ChordType
+		arpeggioDelay time.Duration
+	}
 	overtones struct {
 		count int
 		gain  float64
@@ -203,15 +206,16 @@ func (s *dynamicStreamer) SetTremoloOff() error {
 	return nil
 }
 
-func (s *dynamicStreamer) SetChord(chord chords.ChordType) error {
-	if chords.Equals(s.chord, chord) {
+func (s *dynamicStreamer) SetChord(chord chords.ChordType, arpeggioDelay time.Duration) error {
+	if chords.Equals(s.chordOptions.chord, chord) && s.chordOptions.arpeggioDelay == arpeggioDelay {
 		return nil
 	}
 
-	orig := s.chord
-	s.chord = chord
+	orig := s.chordOptions
+	s.chordOptions.chord = chord
+	s.chordOptions.arpeggioDelay = arpeggioDelay
 	if err := s.update(); err != nil {
-		s.chord = orig
+		s.chordOptions = orig
 		return err
 	}
 
@@ -219,14 +223,14 @@ func (s *dynamicStreamer) SetChord(chord chords.ChordType) error {
 }
 
 func (s *dynamicStreamer) SetChordOff() error {
-	if s.chord == nil {
+	if s.chordOptions.chord == nil {
 		return nil
 	}
 
-	orig := s.chord
-	s.chord = nil
+	orig := s.chordOptions
+	s.chordOptions.chord = nil
 	if err := s.update(); err != nil {
-		s.chord = orig
+		s.chordOptions = orig
 		return err
 	}
 
@@ -307,7 +311,7 @@ func (s *dynamicStreamer) update() error {
 		return err
 	}
 
-	if s.chord != nil {
+	if s.chordOptions.chord != nil {
 		streamer = s.addChord(streamer)
 	}
 
@@ -321,7 +325,7 @@ func (s *dynamicStreamer) update() error {
 
 func (s *dynamicStreamer) addChord(rootStreamer beep.Streamer) beep.Streamer {
 	mixer := &beep.Mixer{}
-	for _, semitone := range s.chord.Semitones() {
+	for i, semitone := range s.chordOptions.chord.Semitones() {
 		if semitone == 0 {
 			mixer.Add(rootStreamer)
 			continue
@@ -330,7 +334,13 @@ func (s *dynamicStreamer) addChord(rootStreamer beep.Streamer) beep.Streamer {
 		argsCopy := s.streamerArgs
 		argsCopy.frequency = s.streamerArgs.frequency.ShiftSemitone(semitone)
 		if semitoneStreamer, err := createStreamer(argsCopy); err == nil {
-			mixer.Add(semitoneStreamer)
+			if s.chordOptions.arpeggioDelay > 0 {
+				// Delay each tone, up to 2 delays. After that play all remaining tones together.
+				delay := time.Duration(min(i, 2)) * s.chordOptions.arpeggioDelay
+				time.AfterFunc(delay, func() { mixer.Add(semitoneStreamer) })
+			} else {
+				mixer.Add(semitoneStreamer)
+			}
 		}
 	}
 

@@ -1,18 +1,24 @@
 TODOs:
  - create base streamerModule
+ - keyboard hold key
  - multiple waves effects:
-    - arpeggio (add delay to chords)
-    - chorus? https://www.avid.com/resource-center/chorus-effect
+    - arpeggio order - up, down, up & down, up/down, random
+    - chorus? amount, detune, delay https://www.avid.com/resource-center/chorus-effect
+    - reverb/delay - amount, pre-delay, decay time
+ - envelopes: (use beep effects.Transition?)
+    - Attack-Release
+    - ADSR
  - simple wave manipulation effects:
     - distortion?
     - rotary effect
  - frequency shift effects:
     - vibrato?
-    - envelopes: (use beep effects.Transition?)
-        - Attack-Release
-        - ADSR
+    - arpeggiator - order, tempo, octaves, sustain note (https://www.youtube.com/watch?app=desktop&v=7sHx3sA0aGk)
+ - waveforms - exponential square, logarithmic square
+ - ring modulation - cross streamers effect
  - save & load presets
- - sequence loop?
+ - duplicate streamer
+ - sequencer
  - separate keyboard from view?
 
 Done:
@@ -24,3 +30,4 @@ Done:
  - multiple waves effects:
     - overtones
     - Chords
+       - arpeggio - add delay to chords

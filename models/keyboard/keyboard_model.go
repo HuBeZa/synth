@@ -12,12 +12,12 @@ import (
 	zone "github.com/lrstanley/bubblezone"
 
 	"github.com/HuBeZa/synth/models"
+	"github.com/HuBeZa/synth/models/base/chords"
 	"github.com/HuBeZa/synth/models/base/options"
 	"github.com/HuBeZa/synth/models/base/overtones"
 	"github.com/HuBeZa/synth/models/base/slider"
 	"github.com/HuBeZa/synth/models/base/tremolo"
 	"github.com/HuBeZa/synth/streamers"
-	"github.com/HuBeZa/synth/streamers/chords"
 	"github.com/HuBeZa/synth/streamers/frequencies"
 )
 
@@ -63,7 +63,7 @@ const (
 	octaveSliderId    = "octaveSlider"
 	panSliderId       = "panSlider"
 	gainSliderId      = "gainSlider"
-	chordsOptionsId   = "chordsOptions"
+	chordsCtrlId      = "chordsCtrl"
 	overtonesCtrlId   = "overtonesCtrl"
 	tremoloCtrlId     = "tremoloCtrl"
 )
@@ -96,7 +96,7 @@ type model struct {
 	octaveSlider    slider.Model
 	panSlider       slider.Model
 	gainSlider      slider.Model
-	chordsOptions   options.Model[chords.ChordType]
+	chordsCtrl      chords.Model
 	overtonesCtrl   overtones.Model
 	tremoloCtrl     tremolo.Model
 
@@ -115,7 +115,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 	m.octaveSlider, _ = slider.New(-1, 9, 1, 3, 4)
 	m.panSlider, _ = slider.New(-panSliderRatio, panSliderRatio, 1, 0, 0)
 	m.gainSlider, _ = slider.New(0, gainSliderRatio*4, 1, gainSliderRatio, gainSliderRatio, gainSliderRatio*2, gainSliderRatio*3)
-	m.chordsOptions = options.New(chords.ChordTypes(), true)
+	m.chordsCtrl = chords.New()
 	m.overtonesCtrl = overtones.New()
 	m.tremoloCtrl = tremolo.New()
 	m.zonePrefix = zone.NewPrefix()
@@ -128,7 +128,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 		m.zonePrefix + octaveSliderId:    octaveSliderHandler,
 		m.zonePrefix + panSliderId:       panSliderHandler,
 		m.zonePrefix + gainSliderId:      gainSliderHandler,
-		m.zonePrefix + chordsOptionsId:   chordsOptionsHandler,
+		m.zonePrefix + chordsCtrlId:      chordsCtrlHandler,
 		m.zonePrefix + overtonesCtrlId:   overtonesCtrlHandler,
 		m.zonePrefix + tremoloCtrlId:     tremoloCtrlHandler,
 	}
@@ -253,10 +253,10 @@ func overtonesCtrlHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func chordsOptionsHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
-	optionsModel, cmd := m.chordsOptions.Update(msg)
-	m.chordsOptions = optionsModel.(options.Model[chords.ChordType])
-	m.streamer.SetChord(m.chordsOptions.Value())
+func chordsCtrlHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	chordsModel, cmd := m.chordsCtrl.Update(msg)
+	m.chordsCtrl = chordsModel.(chords.Model)
+	m.streamer.SetChord(m.chordsCtrl.Chord(), m.chordsCtrl.ArpeggioDelay())
 	return m, cmd
 }
 
@@ -281,7 +281,7 @@ func (m model) View() string {
 		m.renderWaveformOptions(),
 		m.renderPanSlider(),
 		m.renderGainSlider(),
-		m.renderChordsOptions(),
+		m.renderChordsCtrl(),
 		m.renderOvertonesCtrl(),
 		m.renderTremoloCtrl())
 }
@@ -353,14 +353,9 @@ func (m model) renderGainSlider() string {
 	return models.LabelStyle().Render("gain") + zone.Mark(id, m.gainSlider.View()) + fmt.Sprintf(" %v", m.streamer.Gain())
 }
 
-func (m model) renderChordsOptions() string {
-	label := models.LabelStyle().Render("chord")
-	if m.chordsOptions.Value() != nil {
-		label = models.SelectedStyle().Render(label)
-	}
-
-	id := m.zonePrefix + chordsOptionsId
-	return label + zone.Mark(id, m.chordsOptions.View())
+func (m model) renderChordsCtrl() string {
+	id := m.zonePrefix + chordsCtrlId
+	return zone.Mark(id, m.chordsCtrl.View())
 }
 
 func (m model) renderOvertonesCtrl() string {
