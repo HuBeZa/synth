@@ -32,7 +32,7 @@ type DynamicStreamer interface {
 	SetFrequency(freq frequencies.Frequency) error
 	SetTremolo(duration time.Duration, startGain, endGain float64, pulsing bool) error
 	SetTremoloOff() error
-	SetEnvelop(attack time.Duration, decay time.Duration, sustain float64, release time.Duration) error
+	SetEnvelope(attack time.Duration, decay time.Duration, sustain float64, release time.Duration) error
 	SetChord(chord chords.ChordType, arpeggioDelay time.Duration) error
 	SetChordOff() error
 	SetOvertones(count int, gain float64) error
@@ -76,7 +76,7 @@ type streamerArgs struct {
 		pulsing   bool
 	}
 
-	envelop struct {
+	envelope struct {
 		isOn    bool
 		attack  int
 		decay   int
@@ -215,20 +215,20 @@ func (s *dynamicStreamer) SetTremoloOff() error {
 	return nil
 }
 
-func (s *dynamicStreamer) SetEnvelop(attack time.Duration, decay time.Duration, sustain float64, release time.Duration) error {
-	orig := s.streamerArgs.envelop
-	s.streamerArgs.envelop.isOn = true
-	s.streamerArgs.envelop.attack = s.streamerArgs.sampleRate.N(attack)
-	s.streamerArgs.envelop.decay = s.streamerArgs.sampleRate.N(decay)
-	s.streamerArgs.envelop.sustain = sustain
-	s.streamerArgs.envelop.release = s.streamerArgs.sampleRate.N(release)
+func (s *dynamicStreamer) SetEnvelope(attack time.Duration, decay time.Duration, sustain float64, release time.Duration) error {
+	orig := s.streamerArgs.envelope
+	s.streamerArgs.envelope.isOn = true
+	s.streamerArgs.envelope.attack = s.streamerArgs.sampleRate.N(attack)
+	s.streamerArgs.envelope.decay = s.streamerArgs.sampleRate.N(decay)
+	s.streamerArgs.envelope.sustain = sustain
+	s.streamerArgs.envelope.release = s.streamerArgs.sampleRate.N(release)
 
-	if orig == s.streamerArgs.envelop {
+	if orig == s.streamerArgs.envelope {
 		return nil
 	}
 
 	if err := s.update(); err != nil {
-		s.streamerArgs.envelop = orig
+		s.streamerArgs.envelope = orig
 		return err
 	}
 
@@ -343,7 +343,7 @@ func (s *dynamicStreamer) TriggerAttack() {
 
 func (s *dynamicStreamer) TriggerRelease() {
 	s.isReleased = true
-	streamer := SetRelease(s.getStreamer(), s.streamerArgs.envelop.sustain, s.streamerArgs.envelop.release)
+	streamer := SetRelease(s.getStreamer(), s.streamerArgs.envelope.sustain, s.streamerArgs.envelope.release)
 	s.streamer.Store(&streamer)
 }
 
@@ -438,14 +438,12 @@ func createStreamer(args streamerArgs) (beep.Streamer, error) {
 		}
 	}
 
-	// streamer = effects.Transition(streamer, s.sampleRate.N(time.Second/2), 2.5, 0, effects.TransitionLinear)
-
 	if args.tremolo.isOn {
 		streamer = Tremolo(streamer, args.tremolo.length, args.tremolo.startGain, args.tremolo.endGain, args.tremolo.pulsing)
 	}
 
-	if args.envelop.isOn {
-		streamer = SetAttackDecaySustain(streamer, args.envelop.attack, args.envelop.decay, args.envelop.sustain)
+	if args.envelope.isOn {
+		streamer = SetAttackDecaySustain(streamer, args.envelope.attack, args.envelope.decay, args.envelope.sustain)
 	}
 
 	return streamer, nil

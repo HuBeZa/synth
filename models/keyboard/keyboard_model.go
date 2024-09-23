@@ -13,6 +13,7 @@ import (
 
 	"github.com/HuBeZa/synth/models"
 	"github.com/HuBeZa/synth/models/base/chords"
+	"github.com/HuBeZa/synth/models/base/envelope"
 	"github.com/HuBeZa/synth/models/base/options"
 	"github.com/HuBeZa/synth/models/base/overtones"
 	"github.com/HuBeZa/synth/models/base/slider"
@@ -66,6 +67,7 @@ const (
 	chordsCtrlId      = "chordsCtrl"
 	overtonesCtrlId   = "overtonesCtrl"
 	tremoloCtrlId     = "tremoloCtrl"
+	envelopeCtrlId    = "envelopeCtrl"
 )
 
 var (
@@ -99,6 +101,7 @@ type model struct {
 	chordsCtrl      chords.Model
 	overtonesCtrl   overtones.Model
 	tremoloCtrl     tremolo.Model
+	envelopeCtrl    envelope.Model
 
 	isSilenced    bool
 	keyPressTimer timer.Model
@@ -118,6 +121,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 	m.chordsCtrl = chords.New()
 	m.overtonesCtrl = overtones.New()
 	m.tremoloCtrl = tremolo.New()
+	m.envelopeCtrl = envelope.New()
 	m.zonePrefix = zone.NewPrefix()
 	m.zoneHandlers = models.ZoneHandlers[model]{
 		m.zonePrefix + upButtonId:        upButtonHandler,
@@ -131,6 +135,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 		m.zonePrefix + chordsCtrlId:      chordsCtrlHandler,
 		m.zonePrefix + overtonesCtrlId:   overtonesCtrlHandler,
 		m.zonePrefix + tremoloCtrlId:     tremoloCtrlHandler,
+		m.zonePrefix + envelopeCtrlId:    envelopeCtrlHandler,
 	}
 
 	m.streamer, _ = streamers.NewWaveformDynamicStreamer(sr, frequencies.Silence(), m.currentPan(), m.currentGain(), m.currentWaveform())
@@ -272,6 +277,13 @@ func tremoloCtrlHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func envelopeCtrlHandler(m model, msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	envelopeModel, cmd := m.envelopeCtrl.Update(msg)
+	m.envelopeCtrl = envelopeModel.(envelope.Model)
+	m.streamer.SetEnvelope(m.envelopeCtrl.ADSR())
+	return m, cmd
+}
+
 func (m model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left,
 		m.renderHeader(models.ColumnWidth),
@@ -283,7 +295,9 @@ func (m model) View() string {
 		m.renderGainSlider(),
 		m.renderChordsCtrl(),
 		m.renderOvertonesCtrl(),
-		m.renderTremoloCtrl())
+		m.renderTremoloCtrl(),
+		m.renderEnvelopeCtrl(),
+	)
 }
 
 func (m model) renderHeader(width int) string {
@@ -366,6 +380,11 @@ func (m model) renderOvertonesCtrl() string {
 func (m model) renderTremoloCtrl() string {
 	id := m.zonePrefix + tremoloCtrlId
 	return zone.Mark(id, m.tremoloCtrl.View())
+}
+
+func (m model) renderEnvelopeCtrl() string {
+	id := m.zonePrefix + envelopeCtrlId
+	return zone.Mark(id, m.envelopeCtrl.View())
 }
 
 func (m model) currentWaveform() streamers.Waveform {

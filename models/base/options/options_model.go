@@ -61,7 +61,9 @@ func (m model[T]) SetValue(v T) Model[T] {
 }
 
 func (m model[T]) ClearValue() Model[T] {
-	m.cursor = noneIndex
+	if m.allowNone {
+		m.cursor = noneIndex
+	}
 	return m
 }
 
