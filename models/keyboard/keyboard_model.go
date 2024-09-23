@@ -134,7 +134,7 @@ func New(sr beep.SampleRate) models.StreamerModel {
 	}
 
 	m.streamer, _ = streamers.NewWaveformDynamicStreamer(sr, frequencies.Silence(), m.currentPan(), m.currentGain(), m.currentWaveform())
-	m.streamer.Silence()
+	m.streamer.TriggerRelease()
 
 	return m
 }
@@ -166,7 +166,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				freq := octaveToKeys[m.octaveSlider.Value()][key]
 				if !m.isSilenced {
 					m.streamer.SetFrequency(freq)
-					m.streamer.Unsilence()
+					m.streamer.TriggerAttack()
 				}
 				m.currKey = key
 				m.currFreq = freq
@@ -179,7 +179,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case timer.TickMsg:
 		if msg.Timeout {
 			m.currKey = ""
-			m.streamer.Silence()
+			m.streamer.TriggerRelease()
 		}
 
 		var cmd tea.Cmd

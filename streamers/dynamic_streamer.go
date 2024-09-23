@@ -32,18 +32,22 @@ type DynamicStreamer interface {
 	SetFrequency(freq frequencies.Frequency) error
 	SetTremolo(duration time.Duration, startGain, endGain float64, pulsing bool) error
 	SetTremoloOff() error
+	SetEnvelop(attack time.Duration, decay time.Duration, sustain float64, release time.Duration) error
 	SetChord(chord chords.ChordType, arpeggioDelay time.Duration) error
 	SetChordOff() error
 	SetOvertones(count int, gain float64) error
 	Waveform() Waveform
 	SetWaveform(waveform Waveform) error
 	SetGenerator(streamerGenerator StreamerGeneratorFunc) error
+	TriggerAttack()
+	TriggerRelease()
 }
 
 type dynamicStreamer struct {
 	streamerArgs streamerArgs
 	waveform     Waveform
 	silenced     atomic.Bool
+	isReleased   bool
 	streamer     atomic.Pointer[beep.Streamer]
 
 	// additional tones effects:
@@ -70,6 +74,14 @@ type streamerArgs struct {
 		startGain float64
 		endGain   float64
 		pulsing   bool
+	}
+
+	envelop struct {
+		isOn    bool
+		attack  int
+		decay   int
+		sustain float64
+		release int
 	}
 }
 
@@ -104,11 +116,11 @@ func (s *dynamicStreamer) Stream(samples [][2]float64) (n int, ok bool) {
 	if s.IsSilenced() {
 		return silenceStreamer.Stream(samples)
 	}
-	return (*s.streamer.Load()).Stream(samples)
+	return s.getStreamer().Stream(samples)
 }
 
 func (s *dynamicStreamer) Err() error {
-	return (*s.streamer.Load()).Err()
+	return s.getStreamer().Err()
 }
 
 func (s *dynamicStreamer) IsSilenced() bool {
@@ -120,9 +132,6 @@ func (s *dynamicStreamer) Silence() {
 }
 
 func (s *dynamicStreamer) Unsilence() {
-	// force restart of effects
-	s.update()
-
 	s.silenced.Store(false)
 }
 
@@ -200,6 +209,26 @@ func (s *dynamicStreamer) SetTremoloOff() error {
 	s.streamerArgs.tremolo.isOn = false
 	if err := s.update(); err != nil {
 		s.streamerArgs.tremolo.isOn = true
+		return err
+	}
+
+	return nil
+}
+
+func (s *dynamicStreamer) SetEnvelop(attack time.Duration, decay time.Duration, sustain float64, release time.Duration) error {
+	orig := s.streamerArgs.envelop
+	s.streamerArgs.envelop.isOn = true
+	s.streamerArgs.envelop.attack = s.streamerArgs.sampleRate.N(attack)
+	s.streamerArgs.envelop.decay = s.streamerArgs.sampleRate.N(decay)
+	s.streamerArgs.envelop.sustain = sustain
+	s.streamerArgs.envelop.release = s.streamerArgs.sampleRate.N(release)
+
+	if orig == s.streamerArgs.envelop {
+		return nil
+	}
+
+	if err := s.update(); err != nil {
+		s.streamerArgs.envelop = orig
 		return err
 	}
 
@@ -305,6 +334,19 @@ func (s *dynamicStreamer) setGenerator(waveform Waveform, streamerGenerator Stre
 	return nil
 }
 
+func (s *dynamicStreamer) TriggerAttack() {
+	s.isReleased = false
+	// update() forces restart of time dependent effects
+	s.update()
+	s.Unsilence()
+}
+
+func (s *dynamicStreamer) TriggerRelease() {
+	s.isReleased = true
+	streamer := SetRelease(s.getStreamer(), s.streamerArgs.envelop.sustain, s.streamerArgs.envelop.release)
+	s.streamer.Store(&streamer)
+}
+
 func (s *dynamicStreamer) update() error {
 	streamer, err := createStreamer(s.streamerArgs)
 	if err != nil {
@@ -317,6 +359,10 @@ func (s *dynamicStreamer) update() error {
 
 	if s.overtones.count > 0 {
 		streamer = s.addOvertones(streamer)
+	}
+
+	if s.isReleased {
+		s.Silence()
 	}
 
 	s.streamer.Store(&streamer)
@@ -398,5 +444,13 @@ func createStreamer(args streamerArgs) (beep.Streamer, error) {
 		streamer = Tremolo(streamer, args.tremolo.length, args.tremolo.startGain, args.tremolo.endGain, args.tremolo.pulsing)
 	}
 
+	if args.envelop.isOn {
+		streamer = SetAttackDecaySustain(streamer, args.envelop.attack, args.envelop.decay, args.envelop.sustain)
+	}
+
 	return streamer, nil
+}
+
+func (s *dynamicStreamer) getStreamer() beep.Streamer {
+	return *s.streamer.Load()
 }

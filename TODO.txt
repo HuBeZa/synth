@@ -5,9 +5,10 @@ TODOs:
     - arpeggio order - up, down, up & down, up/down, random
     - chorus? amount, detune, delay https://www.avid.com/resource-center/chorus-effect
     - reverb/delay - amount, pre-delay, decay time
- - envelopes: (use beep effects.Transition?)
-    - Attack-Release
-    - ADSR
+ - envelopes:
+    - Add hold - AHDSR
+    - multiple attack/decay/release values
+    - transition shape - linear, equal power (aka sin,arc), log, exp, SQRT
  - simple wave manipulation effects:
     - distortion?
     - rotary effect
@@ -22,6 +23,8 @@ TODOs:
  - separate keyboard from view?
 
 Done:
+ - envelopes:
+    - ADSR
  - fix tremolo view
  - reverse tremolo
  - minus gain to reduce volume? (normalize 0-n)

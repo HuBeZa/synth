@@ -11,9 +11,9 @@ import (
 // For the transition period it runs linearly from zero to one, and then back to zero.
 func TransitionLoop(percent float64) float64 {
 	if percent <= 0.5 {
-		return percent*2
+		return percent * 2
 	}
-	return (1-percent)*2
+	return (1 - percent) * 2
 }
 
 type EffectFunc func(l, r, progress float64) (float64, float64)
