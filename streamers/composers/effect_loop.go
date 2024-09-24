@@ -1,32 +1,20 @@
-package streamers
+package composers
 
 import (
 	"math"
 
 	"github.com/gopxl/beep/v2"
-	"github.com/gopxl/beep/v2/effects"
 )
-
-// TransitionLoop is a beep/v2/effects.TransitionFunc.
-// For the transition period it runs linearly from zero to one, and then back to zero.
-func TransitionLoop(percent float64) float64 {
-	if percent <= 0.5 {
-		return percent * 2
-	}
-	return (1 - percent) * 2
-}
-
-type EffectFunc func(l, r, progress float64) (float64, float64)
 
 type effectLoop struct {
 	streamer       beep.Streamer
 	pos            int
 	length         int
-	transitionFunc effects.TransitionFunc
+	transitionFunc TransitionFunc
 	effectFunc     EffectFunc
 }
 
-func NewEffectLoop(streamer beep.Streamer, length int, transitionFunc effects.TransitionFunc, effectFunc EffectFunc) beep.Streamer {
+func NewEffectLoop(streamer beep.Streamer, length int, transitionFunc TransitionFunc, effectFunc EffectFunc) beep.Streamer {
 	return &effectLoop{
 		streamer:       streamer,
 		length:         length,

@@ -2,19 +2,20 @@ package streamers
 
 import (
 	"github.com/gopxl/beep/v2"
-	"github.com/gopxl/beep/v2/effects"
+
+	"github.com/HuBeZa/synth/streamers/composers"
 )
 
-func attackFunc() EffectFunc {
-	return TransitionEffectFunc(0, 1)
+func attackFunc() composers.EffectFunc {
+	return composers.GainTransitionEffect(0, 1)
 }
 
-func decayFunc(sustain float64) EffectFunc {
-	return TransitionEffectFunc(1, sustain)
+func decayFunc(sustain float64) composers.EffectFunc {
+	return composers.GainTransitionEffect(1, sustain)
 }
 
-func releaseFunc(sustain float64) EffectFunc {
-	return TransitionEffectFunc(sustain, 0)
+func releaseFunc(sustain float64) composers.EffectFunc {
+	return composers.GainTransitionEffect(sustain, 0)
 }
 
 func SetAttackDecaySustain(streamer beep.Streamer, attack int, decay int, sustain float64) beep.Streamer {
@@ -22,9 +23,9 @@ func SetAttackDecaySustain(streamer beep.Streamer, attack int, decay int, sustai
 		return streamer
 	}
 
-	return NewEffectsChain(streamer).
-		Append(attack, effects.TransitionLinear, attackFunc()).
-		Append(decay, effects.TransitionLinear, decayFunc(sustain)).
+	return composers.NewEffectsChain(streamer).
+		Append(attack, composers.TransitionLinear, attackFunc()).
+		Append(decay, composers.TransitionLinear, decayFunc(sustain)).
 		Loop(false).
 		Build()
 }
@@ -34,8 +35,8 @@ func SetRelease(streamer beep.Streamer, sustain float64, release int) beep.Strea
 		return silenceStreamer
 	}
 
-	return NewEffectsChain(streamer).
-		Append(release, effects.TransitionLinear, releaseFunc(sustain)).
+	return composers.NewEffectsChain(streamer).
+		Append(release, composers.TransitionLinear, releaseFunc(sustain)).
 		Loop(false).
 		Build()
 }

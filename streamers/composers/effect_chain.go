@@ -1,21 +1,20 @@
-package streamers
+package composers
 
 import (
 	"math"
 
 	"github.com/gopxl/beep/v2"
-	"github.com/gopxl/beep/v2/effects"
 )
 
 type EffectsChainBuilder interface {
-	Append(length int, transitionFunc effects.TransitionFunc, effectFunc EffectFunc) EffectsChainBuilder
+	Append(length int, transitionFunc TransitionFunc, effectFunc EffectFunc) EffectsChainBuilder
 	Loop(loop bool) EffectsChainBuilder
 	Build() beep.Streamer
 }
 
 type effectArgs struct {
 	length         int
-	transitionFunc effects.TransitionFunc
+	transitionFunc TransitionFunc
 	effectFunc     EffectFunc
 }
 
@@ -34,7 +33,7 @@ func NewEffectsChain(streamer beep.Streamer) EffectsChainBuilder {
 	}
 }
 
-func (e *effectsChain) Append(length int, transitionFunc effects.TransitionFunc, effectFunc EffectFunc) EffectsChainBuilder {
+func (e *effectsChain) Append(length int, transitionFunc TransitionFunc, effectFunc EffectFunc) EffectsChainBuilder {
 	e.effects = append(e.effects, effectArgs{length, transitionFunc, effectFunc})
 	return e
 }
