@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/HuBeZa/synth/streamers/chords"
+	"github.com/HuBeZa/synth/streamers/composers"
 	"github.com/HuBeZa/synth/streamers/frequencies"
 	"github.com/gopxl/beep/v2"
 	"github.com/gopxl/beep/v2/effects"
@@ -32,7 +33,9 @@ type DynamicStreamer interface {
 	SetFrequency(freq frequencies.Frequency) error
 	SetTremolo(duration time.Duration, startGain, endGain float64, pulsing bool) error
 	SetTremoloOff() error
-	SetEnvelope(attack time.Duration, decay time.Duration, sustain float64, release time.Duration) error
+	SetEnvelope(attack time.Duration, attackType composers.TransitionType,
+		decay time.Duration, decayType composers.TransitionType,
+		sustain float64, release time.Duration, releaseType composers.TransitionType) error
 	SetChord(chord chords.ChordType, arpeggioDelay time.Duration) error
 	SetChordOff() error
 	SetOvertones(count int, gain float64) error
@@ -77,11 +80,14 @@ type streamerArgs struct {
 	}
 
 	envelope struct {
-		isOn    bool
-		attack  int
-		decay   int
-		sustain float64
-		release int
+		isOn        bool
+		attack      int
+		attackType  composers.TransitionType
+		decay       int
+		decayType   composers.TransitionType
+		sustain     float64
+		release     int
+		releaseType composers.TransitionType
 	}
 }
 
@@ -215,13 +221,18 @@ func (s *dynamicStreamer) SetTremoloOff() error {
 	return nil
 }
 
-func (s *dynamicStreamer) SetEnvelope(attack time.Duration, decay time.Duration, sustain float64, release time.Duration) error {
+func (s *dynamicStreamer) SetEnvelope(attack time.Duration, attackType composers.TransitionType,
+	decay time.Duration, decayType composers.TransitionType,
+	sustain float64, release time.Duration, releaseType composers.TransitionType) error {
 	orig := s.streamerArgs.envelope
 	s.streamerArgs.envelope.isOn = true
 	s.streamerArgs.envelope.attack = s.streamerArgs.sampleRate.N(attack)
+	s.streamerArgs.envelope.attackType = attackType
 	s.streamerArgs.envelope.decay = s.streamerArgs.sampleRate.N(decay)
+	s.streamerArgs.envelope.decayType = decayType
 	s.streamerArgs.envelope.sustain = sustain
 	s.streamerArgs.envelope.release = s.streamerArgs.sampleRate.N(release)
+	s.streamerArgs.envelope.releaseType = releaseType
 
 	if orig == s.streamerArgs.envelope {
 		return nil
@@ -343,7 +354,7 @@ func (s *dynamicStreamer) TriggerAttack() {
 
 func (s *dynamicStreamer) TriggerRelease() {
 	s.isReleased = true
-	streamer := SetRelease(s.getStreamer(), s.streamerArgs.envelope.sustain, s.streamerArgs.envelope.release)
+	streamer := SetRelease(s.getStreamer(), s.streamerArgs.envelope.sustain, s.streamerArgs.envelope.release, s.streamerArgs.envelope.releaseType)
 	s.streamer.Store(&streamer)
 }
 
@@ -443,7 +454,7 @@ func createStreamer(args streamerArgs) (beep.Streamer, error) {
 	}
 
 	if args.envelope.isOn {
-		streamer = SetAttackDecaySustain(streamer, args.envelope.attack, args.envelope.decay, args.envelope.sustain)
+		streamer = SetAttackDecaySustain(streamer, args.envelope.attack, args.envelope.attackType, args.envelope.decay, args.envelope.decayType, args.envelope.sustain)
 	}
 
 	return streamer, nil

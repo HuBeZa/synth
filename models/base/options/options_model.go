@@ -20,12 +20,14 @@ type Model[T equatable[T]] interface {
 	Value() T
 	SetValue(v T) Model[T]
 	ClearValue() Model[T]
+	SetStringer(func(T) string) Model[T]
 }
 
 type model[T equatable[T]] struct {
 	cursor     int
 	options    []T
 	allowNone  bool
+	stringer   func(T) string
 	zonePrefix string
 }
 
@@ -34,11 +36,12 @@ func New[T equatable[T]](options []T, allowNone bool) Model[T] {
 	if allowNone {
 		cursor = noneIndex
 	}
-	
+
 	return model[T]{
 		cursor:     cursor,
 		options:    options,
 		allowNone:  allowNone,
+		stringer:   defaultStringer[T],
 		zonePrefix: zone.NewPrefix(),
 	}
 }
@@ -101,7 +104,7 @@ func (m model[T]) View() string {
 			style = models.SelectedStyle()
 		}
 		id := m.getZoneId(i)
-		view := style.Render(fmt.Sprintf("%v %v ", button, m.options[i]))
+		view := style.Render(fmt.Sprintf("%v %v ", button, m.stringer(m.options[i])))
 		optionsView[i] = zone.Mark(id, view)
 	}
 
@@ -110,4 +113,16 @@ func (m model[T]) View() string {
 
 func (m model[T]) getZoneId(i int) string {
 	return fmt.Sprintf("%v%v", m.zonePrefix, i)
+}
+
+func (m model[T]) SetStringer(stringer func(T) string) Model[T] {
+	if stringer == nil {
+		m.stringer = defaultStringer[T]
+	}
+	m.stringer = stringer
+	return m
+}
+
+func defaultStringer[T any](t T) string {
+	return fmt.Sprint(t)
 }
