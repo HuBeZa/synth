@@ -33,7 +33,7 @@ func (t TransitionType) String() string {
 	case Linear:
 		return "linear"
 	case EqualPower:
-		return "log"
+		return "sin"
 	case Exponential:
 		return "exp"
 	default:
