@@ -6,7 +6,6 @@ require (
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.1.0
 	github.com/charmbracelet/lipgloss v0.13.0
-	github.com/gdamore/tcell/v2 v2.7.4
 	github.com/gopxl/beep/v2 v2.0.3
 	github.com/lrstanley/bubblezone v0.0.0-20240908145712-0c52f9da2766
 	golang.org/x/sys v0.25.0
@@ -20,8 +19,6 @@ require (
 	github.com/ebitengine/oto/v3 v3.2.0 // indirect
 	github.com/ebitengine/purego v0.7.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
-	github.com/gdamore/encoding v1.0.0 // indirect
-	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
